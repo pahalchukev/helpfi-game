@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const https = require('https');
 const http = require('http');
@@ -5,10 +6,9 @@ const socketio = require('socket.io');
 const { default: axios } = require('axios');
 const fs = require('fs');
 const app = express();
-
-const ssl = false;
 let server;
-if(ssl){
+
+if(process.env.NODE_ENV == 'production'){
     const sslOptions = {
         cert: fs.readFileSync('/etc/letsencrypt/live/game.helpfi.ua/fullchain.pem'),
         key: fs.readFileSync('/etc/letsencrypt/live/game.helpfi.ua/privkey.pem')
@@ -28,9 +28,7 @@ const io = socketio(server, {
 const port = process.env.PORT || 3000;
 let firstStart = true;
 let pause = false;
-const GAME_KEY = ''
-// const HOST = 'https://game.helpfi.ua:3000'
-const HOST = 'http://localhost'
+// const process.env.HOST = 'https://game.helpfi.ua:3000'
 const lines = { 1: 0, 2: 0, 3: 0 }
 const bets = {}
 let local_game, game, adv_count = 0;
@@ -65,7 +63,7 @@ server.listen(port);
 const auth = async (token) => {
     let data;
     try {
-        let res = await axios.get(`${HOST}/api/v1/games/user`, {
+        let res = await axios.get(`${process.env.HOST}/api/v1/games/user`, {
             headers: { Authorization: `Bearer ${token}` }
         })
         data = res.data
@@ -84,7 +82,7 @@ const bet = async (socket, line) => {
         return;
     }
     try {
-        res = await axios.post(`${HOST}/api/v1/games/${local_game.id}/bets`, { line: line }, {
+        res = await axios.post(`${process.env.HOST}/api/v1/games/${local_game.id}/bets`, { line: line }, {
             headers: { Authorization: `Bearer ${socket.user.token}` }
         })
 
@@ -116,7 +114,7 @@ const takeGame = async () => {
     }
     firstStart = false;
     pause = false;
-    let res = await axios.get(`${HOST}/api/v1/games`)
+    let res = await axios.get(`${process.env.HOST}/api/v1/games`)
     if (!res.data.success) {
         console.error(res);
         io.emit('server error')
@@ -149,7 +147,7 @@ const calcWiners = async (id) => {
     let res;
     try {
         if (local_game.id == null) throw new Error('game id  == null')
-        res = await axios.post(`${HOST}/api/v1/games/${id}/finish`, { key: GAME_KEY });
+        res = await axios.post(`${process.env.HOST}/api/v1/games/${id}/finish`, { key: process.env.GAME_KEY });
 
         if (res.data.success) {
             if (res.data.winners.length > 0) {
