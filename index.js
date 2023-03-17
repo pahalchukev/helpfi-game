@@ -8,19 +8,19 @@ const fs = require('fs');
 const app = express();
 let server;
 
-if(process.env.NODE_ENV == 'production'){
+if (process.env.NODE_ENV == 'production') {
     const sslOptions = {
         cert: fs.readFileSync('/etc/letsencrypt/live/game.helpfi.ua/fullchain.pem'),
         key: fs.readFileSync('/etc/letsencrypt/live/game.helpfi.ua/privkey.pem')
     };
     server = https.createServer(sslOptions, app);
-}else{
+} else {
     server = http.createServer(app);
 }
 
 const io = socketio(server, {
     cors: {
-        origin: "https://helpfi.ua, https://alpha.helpfi.me",
+        origin: "https://helpfi.ua, https://alpha.helpfi.me, http://localhost",
         methods: ["GET", "POST"]
     }
 });
@@ -50,10 +50,15 @@ io.on('connection', async (socket) => {
     if (firstStart || stoped) await takeGame();
     if (bets[socket.id] == undefined)
         bets[socket.id] = { 1: 0, 2: 0, 3: 0 }
+    calcOnline()
 
     socket.emit('init', { pause, game, lines, rates: bets[socket.id], history })
 
     socket.on('bet', (data) => bet(socket, data.id));
+
+    socket.on("disconnect", () => {
+        calcOnline()
+    });
 });
 
 
@@ -112,6 +117,7 @@ const takeGame = async () => {
         stoped = true;
         return;
     }
+    if (local_game != null) return;
     firstStart = false;
     pause = false;
     let res = await axios.get(`${process.env.HOST}/api/v1/games`)
@@ -121,12 +127,12 @@ const takeGame = async () => {
     }
     local_game = res.data.game
     game = { id: local_game.id, begin: local_game.start }
+
     let time = Math.floor(new Date().getTime() / 1000)
     setTimeout(async function () {
         await finishGame(local_game.id)
     }, (local_game.end - time) * 1000)
 }
-
 
 const finishGame = async (id) => {
     io.emit('finish', showAdv());
@@ -197,4 +203,9 @@ const showAdv = () => {
     }
     adv_count++;
     return false;
+}
+
+const calcOnline = () => {
+    const online = io.sockets.sockets.size;
+    io.emit('online', online)
 }
