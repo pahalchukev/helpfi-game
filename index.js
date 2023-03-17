@@ -146,7 +146,7 @@ const finishGame = async (id) => {
     setTimeout(async function () {
         await takeGame()
         io.emit('new game', { game, has_bets })
-    }, 10 * 1000)
+    }, process.env.PAUSE * 1000)
 }
 
 const calcWiners = async (id) => {
